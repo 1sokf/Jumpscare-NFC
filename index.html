@@ -6,18 +6,27 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Halloween</title>
     <style>
+        * {
+            box-sizing: border-box;
+        }
+
         body {
             margin: 0;
             background-color: #000;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            overflow: hidden;
         }
 
         .scare {
             position: fixed;
-            top: 0;
-            left: 0;
+            inset: 0;
             width: 100vw;
             height: 100vh;
-            display: block;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #000;
         }
 
         video {
@@ -25,18 +34,80 @@
             height: 100%;
             object-fit: cover;
         }
+
+        #error-box {
+            display: none;
+            position: fixed;
+            inset: 20px;
+            z-index: 10;
+            background: rgba(20, 20, 20, 0.92);
+            border: 1px solid #ff4d6d;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 600px;
+            margin: auto;
+            height: fit-content;
+            line-height: 1.5;
+        }
+
+        #error-box code {
+            background: rgba(255, 255, 255, 0.12);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 
 <body>
 
     <div id="scare" class="scare">
-        <video id="video" src="./video.mp4" autoplay muted playsinline loop></video>
+        <video id="video" autoplay muted playsinline loop preload="auto" controls>
+            <source src="video.mp4" type="video/mp4">
+            Votre navigateur ne supporte pas la lecture vidéo HTML5.
+        </video>
+    </div>
+
+    <div id="error-box">
+        <strong>Problème de chargement de la vidéo</strong>
+        <p id="error-text"></p>
+        <p>Vérifiez que <code>video.mp4</code> est bien à la racine du dépôt (à côté de <code>index.html</code>) et qu'il est encodé en <strong>H.264 (MP4)</strong>.</p>
     </div>
 
     <script>
         const video = document.getElementById('video');
-        video.play().catch(() => {});
+        const errorBox = document.getElementById('error-box');
+        const errorText = document.getElementById('error-text');
+
+        function tryPlay() {
+            const promise = video.play();
+            if (promise && typeof promise.catch === 'function') {
+                promise.catch(() => {});
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', tryPlay);
+        window.addEventListener('load', tryPlay);
+
+        // Relance si le navigateur attend une interaction (ex. scan NFC / toucher / clic)
+        ['click', 'touchstart', 'pointerdown'].forEach((eventName) => {
+            window.addEventListener(eventName, () => {
+                video.muted = false;
+                tryPlay();
+            }, { once: false, passive: true });
+        });
+
+        video.addEventListener('error', () => {
+            const err = video.error;
+            let message = 'Impossible de lire le fichier video.mp4.';
+            if (err) {
+                if (err.code === 1) message = 'Lecture interrompue par le navigateur.';
+                if (err.code === 2) message = 'Erreur réseau lors du téléchargement de video.mp4 (vérifiez que le fichier existe bien à cette URL).';
+                if (err.code === 3) message = 'Le fichier vidéo est corrompu ou son décodage a échoué.';
+                if (err.code === 4) message = 'Format ou codec vidéo non supporté par ce navigateur (utilisez MP4 H.264 + AAC).';
+            }
+            errorText.textContent = message;
+            errorBox.style.display = 'block';
+        });
     </script>
 
 </body>
